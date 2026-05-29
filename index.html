@@ -105,22 +105,6 @@
 
     #cart-content-area::-webkit-scrollbar { width: 4px; }
     #cart-content-area::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
-    
-    /* Custom Checkbox Styling */
-    .checkbox-container {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      cursor: pointer;
-      font-size: 14px;
-      color: #475569;
-      padding: 12px;
-      background: #f1f5f9;
-      border-radius: 12px;
-      transition: background 0.2s;
-    }
-    .checkbox-container:hover { background: #e2e8f0; }
-    .checkbox-container input { width: 18px; height: 18px; cursor: pointer; accent-color: #22c55e; }
   </style>
 </head>
 <body class="bg-slate-50 text-slate-900">
@@ -198,15 +182,7 @@
               <input type="text" name="First_Name" placeholder="First Name" class="w-full p-3 bg-slate-100 rounded-xl text-sm" required>
               <input type="text" name="Family_Name" placeholder="Family Name" class="w-full p-3 bg-slate-100 rounded-xl text-sm" required>
           </div>
-          
-          <div class="space-y-2">
-            <input type="tel" name="Phone" placeholder="Phone Number" class="w-full p-3 bg-slate-100 rounded-xl text-sm" required>
-            <label class="checkbox-container">
-              <input type="checkbox" name="Has_WhatsApp" id="wa-check" value="Yes" checked>
-              <span id="wa-text">I have WhatsApp</span>
-            </label>
-          </div>
-
+          <input type="tel" name="Phone" placeholder="Phone Number" class="w-full p-3 bg-slate-100 rounded-xl text-sm" required>
           <input type="email" name="Email" placeholder="Email Address" class="w-full p-3 bg-slate-100 rounded-xl text-sm" required>
           
           <div class="space-y-3">
@@ -217,14 +193,7 @@
               <option value="bayit_vagan" data-fee="30">Bayit V'Gan (+₪30)</option>
             </select>
             
-            <div id="address-section" class="hidden space-y-2">
-              <input type="text" name="Street" id="street-field" placeholder="Street" class="w-full p-3 bg-slate-100 rounded-xl text-sm border-2 border-blue-50 focus:border-blue-300 outline-none">
-              <div class="grid grid-cols-3 gap-2">
-                <input type="text" name="Building_No" id="building-field" placeholder="House No." class="p-3 bg-slate-100 rounded-xl text-sm border-2 border-blue-50 focus:border-blue-300 outline-none">
-                <input type="text" name="Apt" id="apt-field" placeholder="Apt." class="p-3 bg-slate-100 rounded-xl text-sm border-2 border-blue-50 focus:border-blue-300 outline-none">
-                <input type="text" name="Floor" id="floor-field" placeholder="Floor" class="p-3 bg-slate-100 rounded-xl text-sm border-2 border-blue-50 focus:border-blue-300 outline-none">
-              </div>
-            </div>
+            <input type="text" name="Address" id="address-field" placeholder="Full Address (Street, House No, Apt)" class="hidden w-full p-3 bg-slate-100 rounded-xl text-sm border-2 border-blue-100 focus:border-blue-400 outline-none transition-all">
           </div>
         </form>
       </div>
@@ -232,6 +201,14 @@
 
     <div id="cart-footer" class="p-6 border-t border-slate-100 bg-white">
       <div id="bulk-info-area" class="mb-4 space-y-2"></div>
+      
+      <div class="mb-4">
+        <div class="flex gap-2">
+          <input type="text" id="coupon-input" placeholder="Coupon Code" class="flex-grow p-3 bg-slate-100 rounded-xl text-sm outline-none focus:ring-2 focus:ring-green-500 uppercase">
+          <button onclick="applyCoupon()" class="px-4 py-3 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition">Apply</button>
+        </div>
+        <div id="coupon-message" class="text-xs mt-2 hidden"></div>
+      </div>
       
       <div class="space-y-1 mb-4">
           <div class="flex justify-between items-center text-sm text-slate-500" id="subtotal-row">
@@ -241,6 +218,10 @@
           <div class="flex justify-between items-center text-sm text-green-600 hidden" id="discount-row">
             <span>Bulk Discount:</span>
             <span id="cart-discount-val">-₪0.00</span>
+          </div>
+          <div class="flex justify-between items-center text-sm text-purple-600 hidden" id="coupon-row">
+            <span>Coupon Discount:</span>
+            <span id="coupon-discount-val">-₪0.00</span>
           </div>
           <div class="flex justify-between items-center pt-2 border-t border-slate-50">
             <span class="font-bold text-slate-900">Total:</span>
@@ -262,7 +243,18 @@
 let currentLang = 'en';
 let cart = [];
 let currentOrderNumber = '';
+let appliedCoupon = null;
 const BASE_IMG_URL = "https://mmprinting3d.github.io/MM-3D-Printing/";
+
+// ============================================================
+// COUPON CODES - Add new coupon codes here
+// Format: { code: "CODE", discount: 0.10 } (discount as decimal, e.g., 0.10 = 10%)
+// ============================================================
+const couponCodes = [
+  { code: "BRACHA", discount: 0.50 },
+  { code: "CAMP NISSIM", discount: 0.10 },
+  { code: "==", discount: 0.00 }
+];
 
 const availableColors = [
   { id: "yellow", en: "Yellow", he: "צהוב", hex: "#fbbf24" },
@@ -330,8 +322,8 @@ const allCategories = [
 ];
 
 const ui = {
-  en: { back: "Back to Catalog", addToCart: "Add to Cart", pack: "PACK", color: "SELECT COLOR:", qty: "QTY", wa: "I have WhatsApp" },
-  he: { back: "חזרה לקטלוג", addToCart: "הוסף לסל", pack: "מארז", color: "בחר צבע:", qty: "כמות", wa: "יש לי וואטסאפ" }
+  en: { back: "Back to Catalog", addToCart: "Add to Cart", pack: "PACK", color: "SELECT COLOR:", qty: "QTY" },
+  he: { back: "חזרה לקטלוג", addToCart: "הוסף לסל", pack: "מארז", color: "בחר צבע:", qty: "כמות" }
 };
 
 function generateOrderNumber() {
@@ -340,20 +332,15 @@ function generateOrderNumber() {
 
 function handleDeliveryChange() {
   const select = document.getElementById('delivery-select');
-  const addrSection = document.getElementById('address-section');
-  const fields = ['street-field', 'building-field', 'apt-field', 'floor-field'];
+  const addrField = document.getElementById('address-field');
   
   if (select.value === 'pickup') {
-    addrSection.classList.add('hidden');
-    fields.forEach(f => {
-      document.getElementById(f).required = false;
-      document.getElementById(f).value = '';
-    });
+    addrField.classList.add('hidden');
+    addrField.required = false;
+    addrField.value = '';
   } else {
-    addrSection.classList.remove('hidden');
-    fields.forEach(f => {
-      document.getElementById(f).required = true;
-    });
+    addrField.classList.remove('hidden');
+    addrField.required = true;
   }
   updateCartUI();
 }
@@ -361,7 +348,6 @@ function handleDeliveryChange() {
 function setLanguage(lang) {
   currentLang = lang;
   document.body.className = lang === 'he' ? 'rtl' : '';
-  document.getElementById('wa-text').innerText = ui[currentLang].wa;
   renderCatalog();
 }
 
@@ -369,6 +355,7 @@ function renderCatalog() {
   const container = document.getElementById('view-catalog');
   container.innerHTML = '';
   allCategories.forEach(cat => {
+    if (cat.id === 'Pesach') return; // Hide Pesach category
     const catProds = products.filter(p => p.cat === cat.id);
     if (catProds.length === 0) return;
     const section = document.createElement('div');
@@ -521,6 +508,8 @@ function updateCartUI() {
   const totalEl = document.getElementById('cart-total');
   const discountRow = document.getElementById('discount-row');
   const discountValEl = document.getElementById('cart-discount-val');
+  const couponRow = document.getElementById('coupon-row');
+  const couponValEl = document.getElementById('coupon-discount-val');
   const hiddenSummary = document.getElementById('hidden-order-summary');
   const bulkArea = document.getElementById('bulk-info-area');
   
@@ -560,19 +549,55 @@ function updateCartUI() {
   
   const discPercent = calculateDiscount(totalItemsQty);
   const discAmount = subtotal * discPercent;
-  const afterDiscount = subtotal - discAmount;
+  
+  const couponDiscPercent = appliedCoupon ? appliedCoupon.discount : 0;
+  const couponDiscAmount = subtotal * couponDiscPercent;
+  
+  // Coupon discounts do not apply to bulk orders (when bulk discount is active)
+  let finalDiscountAmount = 0;
+  let discountType = '';
+  let discountPercent = 0;
+  
+  if (discAmount > 0) {
+    // Bulk discount takes priority
+    finalDiscountAmount = discAmount;
+    discountType = 'bulk';
+    discountPercent = discPercent;
+  } else if (couponDiscAmount > 0) {
+    // Coupon discount only applies if no bulk discount
+    finalDiscountAmount = couponDiscAmount;
+    discountType = 'coupon';
+    discountPercent = couponDiscPercent;
+  }
+  
+  const afterAllDiscounts = subtotal - finalDiscountAmount;
   
   const deliverySelect = document.getElementById('delivery-select');
   const deliveryFee = deliverySelect ? parseInt(deliverySelect.selectedOptions[0].getAttribute('data-fee')) : 0;
-  const finalTotal = afterDiscount + deliveryFee;
+  const finalTotal = afterAllDiscounts + deliveryFee;
 
   subtotalEl.innerText = `₪${subtotal.toFixed(2)}`;
-  if (discAmount > 0) {
+  
+  if (discountType === 'bulk') {
     discountRow.classList.remove('hidden');
     discountValEl.innerText = `-₪${discAmount.toFixed(2)} (${(discPercent*100)}%)`;
+    couponRow.classList.add('hidden');
+    // Clear coupon message if bulk discount is applied
+    const couponMessage = document.getElementById('coupon-message');
+    if (couponMessage && appliedCoupon) {
+      couponMessage.textContent = 'Coupon not applicable with bulk discount';
+      couponMessage.className = 'text-xs mt-2 text-orange-500';
+      couponMessage.classList.remove('hidden');
+    }
+  } else if (discountType === 'coupon') {
+    discountRow.classList.add('hidden');
+    couponRow.classList.remove('hidden');
+    couponValEl.innerText = `-₪${couponDiscAmount.toFixed(2)} (${(couponDiscPercent*100)}%)`;
   } else {
     discountRow.classList.add('hidden');
+    couponRow.classList.add('hidden');
   }
+  
   totalEl.innerText = `₪${finalTotal.toFixed(2)}`;
 
   if(cart.length > 0 && !document.getElementById('cart-screen-form').classList.contains('hidden')) {
@@ -592,20 +617,13 @@ function updateCartUI() {
 
   summaryText += `\n------------------\n`;
   summaryText += `Items Subtotal: ₪${subtotal.toFixed(2)}\n`;
-  if(discAmount > 0) summaryText += `Bulk Discount (${discPercent*100}%): -₪${discAmount.toFixed(2)}\n`;
+  if(discountType === 'bulk') summaryText += `Bulk Discount (${discountPercent*100}%): -₪${finalDiscountAmount.toFixed(2)}\n`;
+  if(discountType === 'coupon') summaryText += `Coupon Discount (${discountPercent*100}%): -₪${finalDiscountAmount.toFixed(2)}\n`;
   summaryText += `Delivery Choice: ${deliverySelect?.selectedOptions[0].text || 'Pickup'}\n`;
   
-  const street = document.getElementById('street-field').value;
-  const house = document.getElementById('building-field').value;
-  const apt = document.getElementById('apt-field').value;
-  const floor = document.getElementById('floor-field').value;
+  const addrValue = document.getElementById('address-field').value;
+  if(addrValue) summaryText += `Address: ${addrValue}\n`;
   
-  if(street) {
-    summaryText += `Address: ${street} ${house}, Apt ${apt}, Floor ${floor}\n`;
-  }
-  
-  const hasWA = document.getElementById('wa-check').checked ? "Yes" : "No";
-  summaryText += `Has WhatsApp: ${hasWA}\n`;
   summaryText += `TOTAL ORDER: ₪${finalTotal.toFixed(2)}`;
   
   if(hiddenSummary) hiddenSummary.value = summaryText;
@@ -614,6 +632,34 @@ function updateCartUI() {
 function removeFromCart(cartId) {
   cart = cart.filter(i => i.cartId !== cartId);
   updateCartUI();
+}
+
+function applyCoupon() {
+  const input = document.getElementById('coupon-input');
+  const message = document.getElementById('coupon-message');
+  const code = input.value.trim().toUpperCase();
+  
+  if (!code) {
+    message.textContent = 'Please enter a coupon code';
+    message.className = 'text-xs mt-2 text-red-500';
+    message.classList.remove('hidden');
+    return;
+  }
+  
+  const coupon = couponCodes.find(c => c.code === code);
+  
+  if (coupon) {
+    appliedCoupon = coupon;
+    message.textContent = `Coupon applied! ${coupon.discount * 100}% discount`;
+    message.className = 'text-xs mt-2 text-green-600 font-bold';
+    message.classList.remove('hidden');
+    input.value = '';
+    updateCartUI();
+  } else {
+    message.textContent = 'Invalid coupon code';
+    message.className = 'text-xs mt-2 text-red-500';
+    message.classList.remove('hidden');
+  }
 }
 
 async function submitOrder() {
