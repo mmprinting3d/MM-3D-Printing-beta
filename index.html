@@ -105,6 +105,52 @@
 
     #cart-content-area::-webkit-scrollbar { width: 4px; }
     #cart-content-area::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+
+    /* Category Filter Styles */
+    .category-btn {
+      padding: 10px 20px;
+      border-radius: 24px;
+      border: 2px solid #e2e8f0;
+      background: white;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 14px;
+      transition: all 0.3s ease;
+      white-space: nowrap;
+    }
+
+    .category-btn:hover {
+      border-color: #0f172a;
+      background: #f8fafc;
+    }
+
+    .category-btn.active {
+      background: #0f172a;
+      color: white;
+      border-color: #0f172a;
+    }
+
+    .category-filter-container {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: thin;
+    }
+
+    .category-filter-container::-webkit-scrollbar {
+      height: 4px;
+    }
+
+    .category-filter-container::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 2px;
+    }
+
+    .category-filter-wrapper {
+      display: flex;
+      gap: 10px;
+      padding: 4px;
+      min-width: min-content;
+    }
   </style>
 </head>
 <body class="bg-slate-50 text-slate-900">
@@ -132,6 +178,16 @@
 </header>
 
 <main class="container mx-auto px-4 pb-20">
+  <!-- Category Filter Section (Only visible in catalog view) -->
+  <div id="category-filter-section" class="mb-10 hidden">
+    <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+      <p class="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3" id="filter-label">Filter by Category</p>
+      <div class="category-filter-container">
+        <div class="category-filter-wrapper" id="category-filter-buttons"></div>
+      </div>
+    </div>
+  </div>
+
   <div id="view-catalog" class="space-y-12"></div>
 
   <div id="view-product" class="hidden max-w-5xl mx-auto">
@@ -193,7 +249,7 @@
               <option value="bayit_vagan" data-fee="30">Bayit V'Gan (+₪30)</option>
             </select>
             
-            <input type="text" name="Address" id="address-field" placeholder="Full Address (Street, House No, Apt)" class="hidden w-full p-3 bg-slate-100 rounded-xl text-sm border-2 border-blue-100 focus:border-blue-400 outline-none transition-all">
+            <input type="text" name="Address" id="address-field" placeholder="Full Address (Street, House No, Apt)" class="hidden w-full p-3 bg-slate-100 rounded-xl text-sm border-2 border-blue-1">
           </div>
         </form>
       </div>
@@ -244,6 +300,7 @@ let currentLang = 'en';
 let cart = [];
 let currentOrderNumber = '';
 let appliedCoupon = null;
+let selectedCategory = null;
 const BASE_IMG_URL = "https://mmprinting3d.github.io/MM-3D-Printing/";
 
 // ============================================================
@@ -267,15 +324,20 @@ const availableColors = [
   { id: "gold", en: "Gold", he: "זהב", hex: "#d4af37" }
 ];
 
+// ============================================================
+// PRODUCT DATABASE - All products with categories
+// Structure: { id, nameEn, nameHe, priceDisplay, priceValue, cat, img, [packQty], [description] }
+// EASY TO EXPAND: Just add new products to existing categories or create new categories
+// ============================================================
 const products = [
   { id: 1, nameEn: "Scrub daddy stand", nameHe: "מעמד לספוג Scrub Daddy", priceDisplay: "30.00", priceValue: 30.0, cat: "Smart Kitchen Tools", img: "images/Scrub daddy stand.png" },
   { id: 2, nameEn: "Ultimate Spoon Rest", nameHe: "מחזיק כף מושלם", priceDisplay: "30.00", priceValue: 30.0, cat: "Smart Kitchen Tools", img: "images/Ultimate Spoon Rest.png" },
   { id: 3, nameEn: "Minimalist Coaster Set", nameHe: "סט תחתיות מינימליסטי", priceDisplay: "30.00 - 45.00", priceValue: 30.0, cat: "Smart Kitchen Tools", img: "images/Minimalist Coaster Set.png" },
   { id: 4, nameEn: "Lid Storage Rack", nameHe: "מתקן אחסון מכסים", priceDisplay: "25.00 - 80.00", priceValue: 25.0, cat: "Smart Kitchen Tools", img: "images/Lid Storage Rack.png" },
   { id: 5, nameEn: "Universal Bottle Opener", nameHe: "פותחן בקבוקים אוניברסלי", priceDisplay: "25.00", priceValue: 25.0, cat: "Smart Kitchen Tools", img: "images/Universal Bottle Opener.png" },
-  { id: 6, nameEn: "Bottle Dryer Rack + Holder", nameHe: "מתקן לייבוש בקבוקים + מחזיק", priceDisplay: "50.00", priceValue: 50.0, cat: "Smart Kitchen Tools", img: "images/Bottle Dryer Rack + Holder.png", packQty: 6 },
+  { id: 6, nameEn: "Bottle Dryer Rack + Holder", nameHe: "מתקן לייבוש בקבוקים + מחזיק", priceDisplay: "50.00", priceValue: 50.0, cat: "Smart Kitchen Tools", img: "images/Bottle Dryer Rack + Holder.png" },
   { id: 7, nameEn: "Cleaning Spray Holder", nameHe: "מחזיק תרסיס ניקוי", priceDisplay: "25.00", priceValue: 25.0, cat: "Smart Kitchen Tools", img: "images/Cleaning Spray Holder.png" },
-  { id: 8, nameEn: "Food Bag Clips", nameHe: "קליפסים לשקיות מזון", priceDisplay: "30.00", priceValue: 30.0, cat: "Smart Kitchen Tools", img: "images/Food Bag Clips.png", packQty: 8 },
+  { id: 8, nameEn: "Food Bag Clips", nameHe: "קליפסים לשקיות מזון", priceDisplay: "30.00", priceValue: 30.0, cat: "Smart Kitchen Tools", img: "images/Food Bag Clips.png", packQty: 4 },
   { id: 201, nameEn: "Chametz-Free sign", nameHe: "שלט חדר זה נקי לפסח", priceDisplay: "60.00", priceValue: 60.0, cat: "Pesach", img: "images/Chametz-Free sign.jpeg", packQty: 4 },
   { id: 202, nameEn: "Omer calendar", nameHe: "לוח ספירת העומר", priceDisplay: "65.00", priceValue: 65.0, cat: "Pesach", img: "images/Omer calendar.png" },
   { id: 301, nameEn: "Bag Handle", nameHe: "ידית נשיאה לשקיות", priceDisplay: "30.00", priceValue: 30.0, cat: "Shopping Essentials", img: "images/Bag Handle.png" },
@@ -306,7 +368,12 @@ const products = [
   { id: 106, nameEn: "Universal card case", nameHe: "נרתיק כרטיסים אוניברסלי", priceDisplay: "30.00", priceValue: 30.0, cat: "Travel Essentials", img: "images/Universal card case.png" },
   { id: 107, nameEn: "Folding Comb", nameHe: "מסרק מתקפל", priceDisplay: "24.00", priceValue: 24.0, cat: "Travel Essentials", img: "images/Folding Comb.png" },
   { id: 108, nameEn: "Toothbrush Travel Case", nameHe: "נרתיק למברשת שיניים לנסיעה", priceDisplay: "15.00", priceValue: 15.0, cat: "Travel Essentials", img: "images/Toothbrush Travel Case.png" },
-  { id: 801, nameEn: "Infinity Feeding pump holder", nameHe: "מחזיק למשאבת הזנה אינפיניטי", priceDisplay: "60.00", priceValue: 60.0, cat: "Tools and Accessories", img: "images/Infinity Feeding pump holder.png" }
+  { id: 801, nameEn: "Infinity Feeding pump holder", nameHe: "מחזיק למשאבת הזנה אינפיניטי", priceDisplay: "60.00", priceValue: 60.0, cat: "Tools and Accessories", img: "images/Infinity Feeding pump holder.png" },
+  { id: 1001, nameEn: "Custom Keyring", nameHe: "מחזיק מפתחות מותאם אישית", priceDisplay: "15.00", priceValue: 15.0, cat: "Custom Prints", img: "images/Custom Keyring.png", description: "Personalized 3D printed keyring with your custom design" },
+  { id: 1002, nameEn: "Custom Bookmark", nameHe: "סימניה מותאמת אישית", priceDisplay: "8.00", priceValue: 8.0, cat: "Custom Prints", img: "images/Custom Bookmark.png", description: "Unique 3D printed bookmark with personalized engraving" },
+  { id: 1003, nameEn: "Custom Name Tag", nameHe: "תג שם מותאם אישית", priceDisplay: "12.00", priceValue: 12.0, cat: "Custom Prints", img: "images/Custom Name Tag.png", description: "Personalized name tag for office or events" },
+  { id: 1004, nameEn: "Custom Sign", nameHe: "שלט מותאם אישית", priceDisplay: "25.00", priceValue: 25.0, cat: "Custom Prints", img: "images/Custom Sign.png", description: "Custom 3D printed sign with your text or design" },
+  { id: 1005, nameEn: "Personalized Desk Plaque", nameHe: "שלט שולחן עבודה אישי", priceDisplay: "30.00", priceValue: 30.0, cat: "Custom Prints", img: "images/Personalized Desk Plaque.png", description: "Custom desk plaque for personalization" }
 ];
 
 const allCategories = [
@@ -318,12 +385,13 @@ const allCategories = [
   { id: "Tefillin Boxes", en: "Tefillin Boxes", he: "בתי תפילין" },
   { id: "Tzedakah Boxes", en: "Tzedakah Boxes", he: "קופות צדקה" },
   { id: "Travel Essentials", en: "Travel Essentials", he: "אביזרים לנוסעים" },
-  { id: "Tools and Accessories", en: "Tools and Accessories", he: "כלים ואביזרים" }
+  { id: "Tools and Accessories", en: "Tools and Accessories", he: "כלים ואביזרים" },
+  { id: "Custom Prints", en: "Custom Prints", he: "הדפסים מותאמים אישית" }
 ];
 
 const ui = {
-  en: { back: "Back to Catalog", addToCart: "Add to Cart", pack: "PACK", color: "SELECT COLOR:", qty: "QTY" },
-  he: { back: "חזרה לקטלוג", addToCart: "הוסף לסל", pack: "מארז", color: "בחר צבע:", qty: "כמות" }
+  en: { back: "Back to Catalog", addToCart: "Add to Cart", pack: "PACK", color: "SELECT COLOR:", qty: "QTY", viewAll: "View All Products", filterLabel: "Filter by Category" },
+  he: { back: "חזרה לקטלוג", addToCart: "הוסף לסל", pack: "מארז", color: "בחר צבע:", qty: "כמות", viewAll: "הצג את כל המוצרים", filterLabel: "סנן לפי קטגוריה" }
 };
 
 function generateOrderNumber() {
@@ -349,15 +417,82 @@ function setLanguage(lang) {
   currentLang = lang;
   document.body.className = lang === 'he' ? 'rtl' : '';
   renderCatalog();
+  renderCategoryFilter();
+}
+
+function renderCategoryFilter() {
+  const container = document.getElementById('category-filter-buttons');
+  container.innerHTML = '';
+  
+  const viewAllBtn = document.createElement('button');
+  viewAllBtn.type = 'button';
+  viewAllBtn.className = `category-btn ${selectedCategory === null ? 'active' : ''}`;
+  viewAllBtn.textContent = currentLang === 'en' ? ui.en.viewAll : ui.he.viewAll;
+  viewAllBtn.onclick = (e) => {
+    e.preventDefault();
+    filterByCategory(null);
+  };
+  container.appendChild(viewAllBtn);
+  
+  allCategories.forEach(cat => {
+    if (cat.id === 'Pesach') return;
+    
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = `category-btn ${selectedCategory === cat.id ? 'active' : ''}`;
+    btn.textContent = currentLang === 'en' ? cat.en : cat.he;
+    btn.onclick = (e) => {
+      e.preventDefault();
+      filterByCategory(cat.id);
+    };
+    container.appendChild(btn);
+  });
+}
+
+function filterByCategory(categoryId) {
+  selectedCategory = categoryId;
+  renderCatalog();
+  renderCategoryFilter();
+  document.getElementById('view-catalog').scrollIntoView({ behavior: 'smooth' });
+}
+
+function getFilteredProducts() {
+  if (selectedCategory === null) {
+    return products.filter(p => p.cat !== 'Pesach');
+  } else {
+    return products.filter(p => p.cat === selectedCategory);
+  }
 }
 
 function renderCatalog() {
   const container = document.getElementById('view-catalog');
+  const filterSection = document.getElementById('category-filter-section');
+  
   container.innerHTML = '';
-  allCategories.forEach(cat => {
-    if (cat.id === 'Pesach') return; // Hide Pesach category
-    const catProds = products.filter(p => p.cat === cat.id);
-    if (catProds.length === 0) return;
+  filterSection.classList.remove('hidden');
+  document.getElementById('filter-label').textContent = currentLang === 'en' ? ui.en.filterLabel : ui.he.filterLabel;
+  
+  const filteredProducts = getFilteredProducts();
+  const categoriesInUse = new Set();
+  filteredProducts.forEach(p => categoriesInUse.add(p.cat));
+  
+  const sortedCategories = allCategories.filter(cat => 
+    categoriesInUse.has(cat.id) && cat.id !== 'Pesach'
+  );
+  
+  if (filteredProducts.length === 0) {
+    const emptyMsg = document.createElement('div');
+    emptyMsg.className = 'text-center py-20';
+    emptyMsg.innerHTML = `
+      <p class="text-slate-400 text-lg font-semibold">${currentLang === 'en' ? 'No products found' : 'לא נמצאו מוצרים'}</p>
+    `;
+    container.appendChild(emptyMsg);
+    return;
+  }
+  
+  sortedCategories.forEach(cat => {
+    const catProds = filteredProducts.filter(p => p.cat === cat.id);
+    
     const section = document.createElement('div');
     section.innerHTML = `
       <h2 class="text-xl font-black mb-6 border-b-2 border-slate-100 pb-2 uppercase tracking-tight">
@@ -400,6 +535,7 @@ function showProduct(id) {
         <span class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">${p.cat}</span>
         <h2 class="text-3xl md:text-4xl font-black mb-4 leading-tight">${currentLang === 'en' ? p.nameEn : p.nameHe}</h2>
         <div class="text-3xl text-green-600 font-black mb-10">₪${p.priceDisplay}</div>
+        ${p.description ? `<p class="text-slate-600 text-sm mb-6">${p.description}</p>` : ''}
         <div class="grid grid-cols-2 gap-4 mb-8">
           <div>
             <label class="block text-[10px] font-black text-slate-400 mb-2 uppercase tracking-wider">${ui[currentLang].color}</label>
@@ -419,12 +555,14 @@ function showProduct(id) {
             </div>
           </div>
         </div>
-        <button onclick="addToCart(${p.id})" class="w-full py-5 bg-slate-900 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl hover:bg-slate-800 transition-all flex items-center justify-center gap-3">
+        <button onclick="addToCart(${p.id})" class="w-full py-5 bg-slate-900 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl hover:bg-slate-800 transition-all flex items-center justify-center gap-2">
           <i class="fas fa-shopping-basket"></i> ${ui[currentLang].addToCart}
         </button>
       </div>
     </div>
   `;
+  
+  document.getElementById('category-filter-section').classList.add('hidden');
   document.getElementById('view-catalog').classList.add('hidden');
   document.getElementById('view-product').classList.remove('hidden');
   updateDetailColor();
@@ -447,6 +585,7 @@ function adjQty(amt) {
 }
 
 function showCatalog() {
+  document.getElementById('category-filter-section').classList.remove('hidden');
   document.getElementById('view-catalog').classList.remove('hidden');
   document.getElementById('view-product').classList.add('hidden');
 }
@@ -560,18 +699,15 @@ function updateCartUI() {
   const couponDiscPercent = appliedCoupon ? appliedCoupon.discount : 0;
   const couponDiscAmount = subtotal * couponDiscPercent;
   
-  // Coupon discounts do not apply to bulk orders (when bulk discount is active)
   let finalDiscountAmount = 0;
   let discountType = '';
   let discountPercent = 0;
   
   if (discAmount > 0) {
-    // Bulk discount takes priority
     finalDiscountAmount = discAmount;
     discountType = 'bulk';
     discountPercent = discPercent;
   } else if (couponDiscAmount > 0) {
-    // Coupon discount only applies if no bulk discount
     finalDiscountAmount = couponDiscAmount;
     discountType = 'coupon';
     discountPercent = couponDiscPercent;
@@ -589,7 +725,6 @@ function updateCartUI() {
     discountRow.classList.remove('hidden');
     discountValEl.innerText = `-₪${discAmount.toFixed(2)} (${(discPercent*100)}%)`;
     couponRow.classList.add('hidden');
-    // Clear coupon message if bulk discount is applied
     const couponMessage = document.getElementById('coupon-message');
     if (couponMessage && appliedCoupon) {
       couponMessage.textContent = 'Coupon not applicable with bulk discount';
